@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
 
 export default function AuthLayout({
   children,
@@ -9,14 +10,15 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    // If already logged in, redirect to home
-    if (token) {
+    if (isPending) return;
+
+    if (session?.user) {
       router.push('/');
     }
-  }, [router]);
+  }, [router, session, isPending]);
 
   return (
     <div className="min-h-screen bg-gray-50">

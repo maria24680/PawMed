@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { authClient, signInWithGoogle, getOrCreateToken } from "@/lib/auth-client";
 
 import {
   User,
@@ -23,10 +24,6 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
-// ============================================
-// TYPE DEFINITIONS
-// ============================================
-
 interface RegisterFormData {
   name: string;
   email: string;
@@ -40,24 +37,13 @@ interface RegisterFormData {
   hospital: string;
 }
 
-// ============================================
-// MAIN COMPONENT
-// ============================================
-
 export default function RegisterForm() {
   const router = useRouter();
 
-  // ============================================
-  // STATE
-  // ============================================
-
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [role, setRole] = useState<"client" | "veterinarian">("client");
-
-  // ============================================
-  // REACT HOOK FORM
-  // ============================================
 
   const {
     register,
@@ -81,15 +67,10 @@ export default function RegisterForm() {
 
   const watchPassword = watch("password");
 
-  // ============================================
-  // FORM SUBMIT HANDLER
-  // ============================================
-
   const onSubmit = async (data: RegisterFormData) => {
     setLoading(true);
 
     try {
-      // 1. Validate password strength
       const strongPasswordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,}$/;
       if (!strongPasswordRegex.test(data.password)) {
         toast.error("Password: min 6 chars, 1 number & 1 special char");
@@ -97,18 +78,6 @@ export default function RegisterForm() {
         return;
       }
 
-      // 2. Prepare user data
-      const userData: any = {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        phone: data.phone,
-        address: data.address,
-        profileImage: data.profileImage || undefined,
-        role: role,
-      };
-
-      // 3. Add veterinarian specific fields
       if (role === "veterinarian") {
         if (!data.specialization) {
           toast.error("Please select your specialization");
@@ -120,38 +89,44 @@ export default function RegisterForm() {
           setLoading(false);
           return;
         }
-        userData.specialization = [data.specialization];
-        userData.licenseNumber = data.licenseNumber;
-        userData.experience = data.experience || 0;
       }
 
-      console.log("📝 Registration Data:", userData);
+      // Register with Better Auth
+      const { data: result, error } = await authClient.signUp.email({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        phone: data.phone,
+        address: data.address,
+        profileImage: data.profileImage || "",
+        role: role,
+        ...(role === "veterinarian" && {
+          specialization: data.specialization,
+          licenseNumber: data.licenseNumber,
+          experience: data.experience || 0,
+          hospitalName: data.hospital || "",
+        }),
+      } as any);
 
-      // 4. API Call (Backend)
-      const response = await fetch("http://localhost:8000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        toast.error(result.message || "Registration failed");
+      if (error) {
+        toast.error(error.message || "Registration failed");
+        setLoading(false);
         return;
       }
 
-      // 5. Save token and user data
-      const { user, token } = result.data;
-      localStorage.setItem("token", token);
+      const user = result.user as any;
+
+      // Get JWT token from Better Auth session for Express backend
+      const token = await getOrCreateToken();
+      
+      if (token) {
+        localStorage.setItem("token", token);
+      }
+      
       localStorage.setItem("user", JSON.stringify(user));
 
-      // 6. Show success message
       toast.success("Account created successfully! 🎉");
 
-      // 7. Redirect to dashboard
       setTimeout(() => {
         if (role === "veterinarian") {
           router.push("/veterinarian/dashboard");
@@ -169,9 +144,17 @@ export default function RegisterForm() {
     }
   };
 
-  // ============================================
-  // PASSWORD STRENGTH INDICATOR
-  // ============================================
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // After Google redirects back, the token will be created
+    } catch (error: any) {
+      console.error("Google Sign-in Error:", error);
+      toast.error("Google sign-in failed. Please try again.");
+      setGoogleLoading(false);
+    }
+  };
 
   const getPasswordStrength = (password: string) => {
     if (!password) return { label: "", color: "" };
@@ -189,15 +172,10 @@ export default function RegisterForm() {
 
   const passwordStrength = getPasswordStrength(watchPassword || "");
 
-  // ============================================
-  // UI RENDER
-  // ============================================
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#EAF8FC] via-white to-[#DDF5FF] flex items-center justify-center px-5 py-10">
       <div className="w-full max-w-md rounded-3xl bg-white border border-gray-200 shadow-2xl p-8">
 
-        {/* ===== HEADER ===== */}
         <div className="mb-8">
           <div className="flex items-center gap-4">
             <div className="rounded-2xl bg-[#ADD8E6] p-3 shadow">
@@ -210,10 +188,8 @@ export default function RegisterForm() {
           </div>
         </div>
 
-        {/* ===== FORM ===== */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
-          {/* ===== ROLE SELECTION ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Select Your Role
@@ -247,7 +223,6 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          {/* ===== NAME ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Full Name <span className="text-red-500">*</span>
@@ -265,7 +240,6 @@ export default function RegisterForm() {
             )}
           </div>
 
-          {/* ===== EMAIL ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Email Address <span className="text-red-500">*</span>
@@ -290,7 +264,6 @@ export default function RegisterForm() {
             )}
           </div>
 
-          {/* ===== PHONE ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Phone Number
@@ -305,7 +278,6 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          {/* ===== PASSWORD ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Password <span className="text-red-500">*</span>
@@ -336,7 +308,6 @@ export default function RegisterForm() {
               <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
             )}
 
-            {/* Password Strength Indicator */}
             {watchPassword && (
               <p className={`mt-1 text-xs ${passwordStrength.color}`}>
                 Password Strength: {passwordStrength.label}
@@ -348,7 +319,6 @@ export default function RegisterForm() {
             </p>
           </div>
 
-          {/* ===== VETERINARIAN FIELDS ===== */}
           {role === "veterinarian" && (
             <div className="rounded-2xl border border-[#ADD8E6] bg-[#F7FCFE] p-5 space-y-5">
               <h3 className="font-bold text-[#2C5F8A] flex items-center gap-2">
@@ -356,7 +326,6 @@ export default function RegisterForm() {
                 Veterinarian Information
               </h3>
 
-              {/* Specialization */}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Specialization <span className="text-red-500">*</span>
@@ -385,7 +354,6 @@ export default function RegisterForm() {
                 )}
               </div>
 
-              {/* License Number */}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   License Number <span className="text-red-500">*</span>
@@ -405,7 +373,6 @@ export default function RegisterForm() {
                 )}
               </div>
 
-              {/* Experience */}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Experience (Years)
@@ -422,7 +389,6 @@ export default function RegisterForm() {
                 </div>
               </div>
 
-              {/* Hospital */}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Hospital Name
@@ -439,7 +405,6 @@ export default function RegisterForm() {
             </div>
           )}
 
-          {/* ===== ADDRESS ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Address
@@ -455,7 +420,6 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          {/* ===== PROFILE IMAGE ===== */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               Profile Image URL
@@ -470,7 +434,6 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          {/* ===== SUBMIT BUTTON ===== */}
           <button
             type="submit"
             disabled={loading}
@@ -486,7 +449,6 @@ export default function RegisterForm() {
             )}
           </button>
 
-          {/* ===== DIVIDER ===== */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -496,21 +458,25 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          {/* ===== GOOGLE BUTTON ===== */}
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white py-3 font-medium text-gray-700 transition-all duration-300 hover:bg-gray-50 hover:border-[#4A90D9]"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white py-3 font-medium text-gray-700 transition-all duration-300 hover:bg-gray-50 hover:border-[#4A90D9] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="h-5 w-5">
-              <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12S17.4 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z" />
-              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.4 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4c-7.7 0-14.4 4.3-17.7 10.7z" />
-              <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2c-2.1 1.6-4.6 2.5-7.3 2.5-5.2 0-9.6-3.3-11.2-8l-6.5 5C9.5 39.5 16.2 44 24 44z" />
-              <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3-3.4 5.3-6.5 6.8l6.2 5.2C39.4 36.2 44 30.8 44 24c0-1.3-.1-2.3-.4-3.5z" />
-            </svg>
-            Continue with Google
+            {googleLoading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="h-5 w-5">
+                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12S17.4 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z" />
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.4 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4c-7.7 0-14.4 4.3-17.7 10.7z" />
+                <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2c-2.1 1.6-4.6 2.5-7.3 2.5-5.2 0-9.6-3.3-11.2-8l-6.5 5C9.5 39.5 16.2 44 24 44z" />
+                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3-3.4 5.3-6.5 6.8l6.2 5.2C39.4 36.2 44 30.8 44 24c0-1.3-.1-2.3-.4-3.5z" />
+              </svg>
+            )}
+            {googleLoading ? "Redirecting..." : "Continue with Google"}
           </button>
 
-          {/* ===== LOGIN LINK ===== */}
           <p className="mt-8 text-center text-sm text-gray-600">
             Already have an account?{" "}
             <Link
@@ -526,8 +492,3 @@ export default function RegisterForm() {
     </div>
   );
 }
-
-
-
-
-

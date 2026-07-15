@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/lib/auth.ts
 
 import { betterAuth } from "better-auth";

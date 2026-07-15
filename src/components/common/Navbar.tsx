@@ -1,16 +1,14 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { 
-  PawPrint, 
-  Menu, 
-  X, 
-  Calendar, 
-  UserCircle, 
+import {
+  PawPrint,
+  Menu,
+  X,
+  Calendar,
+  UserCircle,
   ChevronDown,
   LogIn,
   LogOut,
@@ -20,10 +18,9 @@ import {
   Stethoscope,
   Mail,
   Heart,
-  PlusCircle,
-  FolderSync
 } from 'lucide-react';
 import Image from 'next/image';
+import { authClient } from '@/lib/auth-client';
 
 export default function Navbar() {
   const router = useRouter();
@@ -32,27 +29,14 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: session, isPending } = authClient.useSession();
+  const user = session?.user as any;
+  const isLoading = isPending;
 
-  // Safely parse localStorage data on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (error) {
-          console.error("Error parsing user data:", error);
-        }
-      }
-      setIsLoading(false);
-    }
-  }, []);
-
+  // ✅ Role-based Dashboard Route
   const getDashboardRoute = () => {
     if (!user) return "/login";
-    const role = user.role;
+    const role = user?.role;
     if (role === "veterinarian" || role === "doctor") return "/veterinarian/dashboard";
     if (role === "admin") return "/admin/dashboard";
     return "/client/dashboard";
@@ -63,7 +47,6 @@ export default function Navbar() {
     return pathname === href || pathname?.startsWith(href + "/");
   };
 
-  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -74,24 +57,22 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Collapse menus when navigation path changes
   useEffect(() => {
     setIsOpen(false);
     setDropdownOpen(false);
   }, [pathname]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null); 
+  const handleLogout = async () => {
+    await authClient.signOut();
     setDropdownOpen(false);
     setIsOpen(false);
     router.push('/login');
+    router.refresh();
   };
 
   const dashboardRoute = getDashboardRoute();
 
-  // 🎯 ডাইনামিক রাউট জেনারেটর (লগইন থাকলে কমপক্ষে ৫টি রাউট নিশ্চিত করবে)
+  // ✅ Nav Links - আলাদা Dashboard
   const getNavLinks = () => {
     const baseLinks = [
       { href: "/", label: "HOME", icon: Home },
@@ -99,29 +80,43 @@ export default function Navbar() {
     ];
 
     if (user) {
-      // লগইন থাকলে এই ৫টি রাউট দেখাবে
-      const loggedInLinks = [
-        ...baseLinks,
-        { href: dashboardRoute, label: "DASHBOARD", icon: LayoutDashboard },
-      ];
-
-      // অ্যাডমিন হলে আইটেম অ্যাড ও ম্যানেজ করার রাউট যুক্ত হবে
-      if (user.role === "admin") {
-        loggedInLinks.push(
-          { href: "/items/add", label: "ADD ITEM", icon: PlusCircle },
-          { href: "/items/manage", label: "MANAGE ITEMS", icon: FolderSync }
-        );
-      } else {
-        // সাধারণ ইউজার বা ডাক্তারের জন্য অ্যাপয়েন্টমেন্ট এবং প্রোফাইল সেটিংস
-        loggedInLinks.push(
-          { href: "/appointments", label: "APPOINTMENTS", icon: Calendar },
-          { href: "/profile", label: "MY PROFILE", icon: UserCircle }
-        );
+      const role = user?.role;
+      
+      // ✅ Admin Links
+      if (role === "admin") {
+        return [
+          ...baseLinks,
+          { href: "/admin/dashboard", label: "ADMIN DASHBOARD", icon: LayoutDashboard },
+          { href: "/about", label: "ABOUT US", icon: Heart },
+          { href: "/contact", label: "CONTACT", icon: Mail },
+          { href: "/profile", label: "PROFILE", icon: UserCircle },
+        ];
       }
-      return loggedInLinks;
+      
+      // ✅ Veterinarian Links
+      if (role === "veterinarian" || role === "doctor") {
+        return [
+          ...baseLinks,
+          { href: "/veterinarian/dashboard", label: "VET DASHBOARD", icon: LayoutDashboard },
+          { href: "/veterinarian/appointments", label: "APPOINTMENTS", icon: Calendar },
+          { href: "/veterinarian/patients", label: "PATIENTS", icon: Heart },
+          { href: "/about", label: "ABOUT US", icon: Heart },
+          { href: "/contact", label: "CONTACT", icon: Mail },
+          { href: "/profile", label: "PROFILE", icon: UserCircle },
+        ];
+      }
+      
+      // ✅ Client Links
+      return [
+        ...baseLinks,
+        { href: "/client/dashboard", label: "MY DASHBOARD", icon: LayoutDashboard },
+        { href: "/about", label: "ABOUT US", icon: Heart },
+        { href: "/contact", label: "CONTACT", icon: Mail },
+        { href: "/profile", label: "PROFILE", icon: UserCircle },
+      ];
     }
 
-    // লগআউট অবস্থায় ৩টি মিনিমাম রাউট
+    // ✅ Logged Out
     return [
       ...baseLinks,
       { href: "/about", label: "ABOUT US", icon: Heart },
@@ -134,10 +129,9 @@ export default function Navbar() {
   return (
     <header className="w-full bg-white shadow-md sticky top-0 z-50 font-sans border-b-2 border-[#ADD8E6]">
 
-      {/* Top Bar */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
 
-        {/* Brand/Logo */}
+        {/* Logo */}
         <Link href="/" className="flex items-center space-x-3 group">
           <div className="bg-[#ADD8E6] text-[#1A1A2E] p-2.5 rounded-xl shadow-md group-hover:bg-[#8ec9d9] transition-colors flex items-center justify-center">
             <PawPrint className="w-6 h-6" />
@@ -152,24 +146,24 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Desktop Contextual Call-to-Action / User Profile */}
+        {/* Right Section */}
         <div className="flex items-center space-x-4">
           <div className="hidden lg:flex items-center space-x-4">
             {isLoading ? (
               <div className="w-32 h-9 bg-slate-100 rounded-xl animate-pulse border border-slate-200" />
             ) : user ? (
               <div className="relative" ref={dropdownRef}>
-                <button 
+                <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 p-1.5 pr-3 rounded-xl hover:bg-slate-100 transition-all text-slate-700 outline-none select-none"
                 >
-                  {user.profileImage ? (
-                    <Image 
-                      src={user.profileImage} 
-                      alt={user.name} 
-                      width={40} 
-                      height={40} 
-                      className="w-7 h-7 rounded-lg object-cover" 
+                  {user?.profileImage ? (
+                    <Image
+                      src={user.profileImage}
+                      alt={user.name || "User"}
+                      width={40}
+                      height={40}
+                      className="w-7 h-7 rounded-lg object-cover"
                       priority
                     />
                   ) : (
@@ -179,7 +173,6 @@ export default function Navbar() {
                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Logged In Dropdown Menu */}
                 {dropdownOpen && (
                   <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl border border-slate-200 shadow-xl py-2 z-50 text-slate-700">
                     <div className="px-4 py-2 border-b border-slate-100 mb-1">
@@ -187,8 +180,8 @@ export default function Navbar() {
                       <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
                       <p className="text-[10px] text-[#4A90D9] font-semibold capitalize mt-0.5">{user.role}</p>
                     </div>
-                    <Link 
-                      href={dashboardRoute} 
+                    <Link
+                      href={dashboardRoute}
                       onClick={() => setDropdownOpen(false)}
                       className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
                         isActive(dashboardRoute) ? "bg-[#ADD8E6]/30 text-[#2C5F8A]" : "hover:bg-slate-50"
@@ -196,14 +189,14 @@ export default function Navbar() {
                     >
                       <LayoutDashboard className="w-4 h-4 text-slate-400" /> Dashboard
                     </Link>
-                    <Link 
-                      href="/profile" 
+                    <Link
+                      href="/profile"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 transition-colors"
                     >
-                      <Settings className="w-4 h-4 text-slate-400" /> Settings
+                      <UserCircle className="w-4 h-4 text-slate-400" /> Profile
                     </Link>
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="w-full border-t border-slate-100 mt-1 flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left"
                     >
@@ -213,7 +206,7 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link 
+              <Link
                 href="/login"
                 className="bg-[#466c94] text-white hover:bg-[#2C5F8A] px-4 py-2.5 rounded-xl font-bold text-xs tracking-wide shadow-md transition-all duration-200 flex items-center gap-2"
               >
@@ -223,8 +216,8 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Hamburger Toggle */}
-          <button 
+          {/* Mobile Menu Button */}
+          <button
             onClick={() => setIsOpen(!isOpen)}
             className="lg:hidden text-slate-700 hover:text-[#4A90D9] p-2 focus:outline-none transition-colors"
             aria-label="Toggle Menu"
@@ -234,13 +227,13 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Desktop Main Navigation Links Strip */}
+      {/* Desktop Nav Links */}
       <div className="hidden lg:block w-full bg-[#1A1A2E] px-6">
         <div className="max-w-7xl mx-auto flex justify-start items-center">
           <nav className="flex items-center space-x-1 text-sm text-slate-200 font-bold">
             {activeNavLinks.map(({ href, label, icon: Icon }) => (
-              <Link 
-                key={href} 
+              <Link
+                key={href}
                 href={href}
                 className={`relative px-5 py-4 transition-colors flex items-center gap-2 ${
                   isActive(href)
@@ -259,16 +252,14 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer Overlay */}
+      {/* Mobile Menu */}
       {isOpen && (
         <div className="lg:hidden bg-[#1A1A2E] text-white w-full border-t border-slate-800">
 
-          {/* Mobile Current Active User Snippet */}
           {!isLoading && user && (
             <div className="flex items-center gap-3 px-6 py-4 bg-slate-900/60 border-b border-slate-800">
-              {user.profileImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.profileImage} alt={user.name} className="w-9 h-9 rounded-xl object-cover" />
+              {user?.profileImage ? (
+                <img src={user.profileImage} alt={user.name || "User"} className="w-9 h-9 rounded-xl object-cover" />
               ) : (
                 <UserCircle className="w-9 h-9 text-slate-500" />
               )}
@@ -280,12 +271,11 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* Mobile Links List */}
           <nav className="flex flex-col text-sm font-bold divide-y divide-slate-800">
             {activeNavLinks.map(({ href, label, icon: Icon }) => (
-              <Link 
-                key={href} 
-                href={href} 
+              <Link
+                key={href}
+                href={href}
                 onClick={() => setIsOpen(false)}
                 className={`px-6 py-4 flex items-center justify-between transition-colors ${
                   isActive(href)
@@ -304,19 +294,18 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* Mobile Call-to-Actions (Sticky to bottom grid inside overlay) */}
           <div className="p-6">
             <div className="grid grid-cols-2 gap-3">
               {!isLoading && user ? (
                 <>
-                  <Link 
-                    href="/appointments" 
+                  <Link
+                    href="/services"
                     onClick={() => setIsOpen(false)}
                     className="border-2 border-[#ADD8E6] text-[#ADD8E6] hover:bg-[#ADD8E6] hover:text-[#1A1A2E] py-3 rounded-xl font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2"
                   >
-                    <Calendar className="w-4 h-4" /> APPOINTMENTS
+                    <Stethoscope className="w-4 h-4" /> SERVICES
                   </Link>
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="bg-rose-600 text-white hover:bg-rose-700 py-3 rounded-xl font-bold text-xs tracking-wide shadow-md transition-all flex items-center justify-center gap-2"
                   >
@@ -325,8 +314,8 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link 
-                    href="/services" 
+                  <Link
+                    href="/services"
                     onClick={() => setIsOpen(false)}
                     className="border-2 border-[#ADD8E6] text-[#ADD8E6] hover:bg-[#ADD8E6] hover:text-[#1A1A2E] py-3 rounded-xl font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2"
                   >
