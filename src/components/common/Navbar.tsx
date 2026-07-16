@@ -33,13 +33,13 @@ export default function Navbar() {
   const user = session?.user as any;
   const isLoading = isPending;
 
-  // ✅ Role-based Dashboard Route
+  // ✅ Role-based Dashboard Route — all dashboards now live under /dashboard/{role}
   const getDashboardRoute = () => {
     if (!user) return "/login";
     const role = user?.role;
-    if (role === "veterinarian" || role === "doctor") return "/veterinarian/dashboard";
-    if (role === "admin") return "/admin/dashboard";
-    return "/client/dashboard";
+    if (role === "veterinarian" || role === "doctor") return "/dashboard/veterinarian";
+    if (role === "admin") return "/dashboard/admin";
+    return "/dashboard/client";
   };
 
   const isActive = (href: string) => {
@@ -81,38 +81,35 @@ export default function Navbar() {
 
     if (user) {
       const role = user?.role;
-      
+
       // ✅ Admin Links
       if (role === "admin") {
         return [
           ...baseLinks,
-          { href: "/admin/dashboard", label: "ADMIN DASHBOARD", icon: LayoutDashboard },
+          { href: "/dashboard/admin", label: "ADMIN DASHBOARD", icon: LayoutDashboard },
           { href: "/about", label: "ABOUT US", icon: Heart },
           { href: "/contact", label: "CONTACT", icon: Mail },
-          { href: "/profile", label: "PROFILE", icon: UserCircle },
         ];
       }
-      
+
       // ✅ Veterinarian Links
       if (role === "veterinarian" || role === "doctor") {
         return [
           ...baseLinks,
-          { href: "/veterinarian/dashboard", label: "VET DASHBOARD", icon: LayoutDashboard },
-          { href: "/veterinarian/appointments", label: "APPOINTMENTS", icon: Calendar },
-          { href: "/veterinarian/patients", label: "PATIENTS", icon: Heart },
+          { href: "/dashboard/veterinarian", label: "VET DASHBOARD", icon: LayoutDashboard },
           { href: "/about", label: "ABOUT US", icon: Heart },
           { href: "/contact", label: "CONTACT", icon: Mail },
-          { href: "/profile", label: "PROFILE", icon: UserCircle },
+          
         ];
       }
-      
+
       // ✅ Client Links
       return [
         ...baseLinks,
-        { href: "/client/dashboard", label: "MY DASHBOARD", icon: LayoutDashboard },
+        { href: "/dashboard/client", label: "MY DASHBOARD", icon: LayoutDashboard },
         { href: "/about", label: "ABOUT US", icon: Heart },
         { href: "/contact", label: "CONTACT", icon: Mail },
-        { href: "/profile", label: "PROFILE", icon: UserCircle },
+        
       ];
     }
 

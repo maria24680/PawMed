@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { authClient, signInWithGoogle, getOrCreateToken } from "@/lib/auth-client";
+import { authClient, signInWithGoogle, syncUserFromServer } from "@/lib/auth-client";
 
 import {
   User,
@@ -114,16 +114,16 @@ export default function RegisterForm() {
         return;
       }
 
-      const user = result.user as any;
+      // Pull the authoritative user record (with role, from Express/Mongo)
+      // now that Better Auth has created the account. This caches it in
+      // localStorage so authFetch can send x-user-email on future requests.
+      const user = await syncUserFromServer();
 
-      // Get JWT token from Better Auth session for Express backend
-      const token = await getOrCreateToken();
-      
-      if (token) {
-        localStorage.setItem("token", token);
+      if (!user) {
+        toast.error("Account created, but we couldn't load your profile. Please try logging in.");
+        setLoading(false);
+        return;
       }
-      
-      localStorage.setItem("user", JSON.stringify(user));
 
       toast.success("Account created successfully! 🎉");
 
@@ -148,7 +148,8 @@ export default function RegisterForm() {
     setGoogleLoading(true);
     try {
       await signInWithGoogle();
-      // After Google redirects back, the token will be created
+      // After Google redirects back, the /auth/callback page should call
+      // initAuth() to sync the user record into localStorage.
     } catch (error: any) {
       console.error("Google Sign-in Error:", error);
       toast.error("Google sign-in failed. Please try again.");

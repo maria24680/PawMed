@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { authClient, signInWithGoogle, getOrCreateToken } from "@/lib/auth-client";
+import { authClient, signInWithGoogle, syncUserFromServer } from "@/lib/auth-client";
 
 import {
   Eye,
@@ -59,27 +59,26 @@ export default function LoginForm() {
         return;
       }
 
-      const user = result.user as any;
+      // Pull the authoritative user record (with role, from Express/Mongo)
+      // now that Better Auth has confirmed the session. This also caches
+      // it in localStorage so authFetch can send x-user-email afterward.
+      const user = await syncUserFromServer();
 
-      // Get JWT token from Better Auth session for Express backend
-      const token = await getOrCreateToken();
-      
-      if (token) {
-        localStorage.setItem("token", token);
+      if (!user) {
+        toast.error("Logged in, but we couldn't load your profile. Please try again.");
+        setLoading(false);
+        return;
       }
-      
-      // Store user data
-      localStorage.setItem("user", JSON.stringify(user));
 
       toast.success(`Welcome back, ${user.name}! 🎉`);
 
       setTimeout(() => {
         if (user.role === "admin") {
-          router.push("/admin/dashboard");
+          router.push("/dashboard/admin");
         } else if (user.role === "veterinarian") {
-          router.push("/veterinarian/dashboard");
+          router.push("/dashboard/veterinarian");
         } else {
-          router.push("/client/dashboard");
+          router.push("/dashboard/client");
         }
         router.refresh();
       }, 800);
@@ -97,7 +96,8 @@ export default function LoginForm() {
     try {
       await signInWithGoogle();
       // Better Auth redirects the browser to Google, then to callbackURL.
-      // After Google redirects back, the token will be created
+      // After Google redirects back, the /auth/callback page should call
+      // initAuth() to sync the user record into localStorage.
     } catch (error: any) {
       console.error("Google Sign-in Error:", error);
       toast.error("Google sign-in failed. Please try again.");
