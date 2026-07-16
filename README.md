@@ -1,36 +1,227 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐾 PawMed Client - Veterinary Clinic Management System
 
-## Getting Started
+PawMed is a modern veterinary clinic management system built with **Next.js, TypeScript, Tailwind CSS, and Better Auth**. It provides a complete digital solution for pet owners, veterinarians, and administrators to manage pets, appointments, medical records, prescriptions, and clinic services.
 
-First, run the development server:
+---
+
+## 🚀 Live Link
+
+🔗 https://pawmed-gamma.vercel.app
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication
+- Secure authentication using Better Auth
+- User registration and login
+- Session-based authentication
+- Protected routes
+- Role-based access control
+
+### 👥 User Roles
+
+#### 🐾 Client
+- Create and manage pet profiles
+- Explore veterinary services
+- Book appointments
+- View appointment history
+- View prescriptions
+- View medical records
+- Update profile information
+
+#### 🩺 Veterinarian
+- Veterinarian dashboard
+- Manage appointments
+- View pet medical history
+- Create prescriptions
+- Manage patient records
+- Track appointment statistics
+
+#### 👑 Admin
+- Admin dashboard
+- Manage users
+- Update user roles
+- Manage clinic services
+- View system statistics
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+- Next.js 16
+- TypeScript
+- React
+- Tailwind CSS
+- DaisyUI
+- Framer Motion
+- Lucide React
+- Recharts
+
+### Authentication
+- Better Auth
+
+### Backend Communication
+- Next.js API Route Proxy
+- Express.js REST API
+
+### Database
+- MongoDB
+
+### Deployment
+- Vercel
+
+---
+
+## 📂 Project Structure
+
+```
+pawmed-client
+│
+├── public
+│
+├── src
+│   ├── app
+│   │   ├── dashboard
+│   │   │   ├── admin
+│   │   │   ├── client
+│   │   │   └── veterinarian
+│   │   │
+│   │   ├── login
+│   │   ├── register
+│   │   ├── explore
+│   │   └── services
+│   │
+│   ├── components
+│   ├── hooks
+│   ├── lib
+│   ├── types
+│   └── utils
+│
+├── package.json
+├── next.config.ts
+├── tsconfig.json
+└── README.md
+```
+
+---
+
+## ⚙️ Installation
+
+### Clone Repository
+
+```bash
+git clone https://github.com/your-username/pawmed-client.git
+```
+
+### Go to Project Folder
+
+```bash
+cd pawmed-client
+```
+
+### Install Dependencies
+
+```bash
+npm install
+```
+
+---
+
+## 🔑 Environment Variables
+
+Create a `.env.local` file:
+
+```env
+BACKEND_URL=your_backend_url
+
+BETTER_AUTH_SECRET=your_secret
+
+BETTER_AUTH_URL=http://localhost:3000
+
+MONGODB_URI=your_mongodb_url
+```
+
+---
+
+## ▶️ Run Project Locally
+
+Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🏗️ Production Build
 
-To learn more about Next.js, take a look at the following resources:
+Create production build:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run production server:
 
-## Deploy on Vercel
+```bash
+npm start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🎨 Design System
+
+PawMed uses a clean veterinary healthcare color palette:
+
+```
+#E6EEC9
+#C2D099
+#7DA78C
+#35858E
+```
+
+Features:
+
+- Responsive design
+- Modern dashboard interface
+- Clean user experience
+- Mobile friendly layout
+
+---
+
+## 🔒 Security Features
+
+- Protected routes
+- Role-based authorization
+- Secure authentication
+- Environment variable protection
+- Server-side session validation
+
+---
+
+## 🔮 Future Improvements
+
+- Stripe payment integration
+- Online doctor consultation
+- Real-time notifications
+- Pet health reminders
+- AI-based pet health assistant
+
+---
+
+## 👩‍💻 Developer
+
+**Mumtahina Maria**
+
+Computer Science & Engineering Student
+
+GitHub:
+https://github.com/maria24680
